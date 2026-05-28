@@ -785,7 +785,12 @@ async function extractMemories(manual){
         ]
       })
     });
-    if(!res.ok){if(btn)btn.classList.remove("working");return}
+    if(!res.ok){
+      if(btn)btn.classList.remove("working");
+      $("toast").textContent="\u26A0 Memory API error";$("toast").classList.remove("hidden");
+      setTimeout(function(){$("toast").textContent="Saved";$("toast").classList.add("hidden")},2500);
+      return;
+    }
     var data=await res.json();
     trackUsage(data);
     var text=(data.choices&&data.choices[0]&&data.choices[0].message?data.choices[0].message.content:"").trim();
@@ -795,11 +800,9 @@ async function extractMemories(manual){
         autoMems=autoMems.concat(newMems);
         if(autoMems.length>100)autoMems=autoMems.slice(autoMems.length-100);
         saveAutoMems();renderAutoMems();
-        if(manual){
-          $("toast").textContent="\u2713 "+newMems.length+" memories saved";
-          $("toast").classList.remove("hidden");
-          setTimeout(function(){$("toast").textContent="Saved";$("toast").classList.add("hidden")},2500);
-        }
+        $("toast").textContent="\u2713 "+newMems.length+" memories saved"+(manual?"":" (auto)");
+        $("toast").classList.remove("hidden");
+        setTimeout(function(){$("toast").textContent="Saved";$("toast").classList.add("hidden")},2500);
       }else if(manual){
         $("toast").textContent="No new memories found";
         $("toast").classList.remove("hidden");
@@ -810,7 +813,11 @@ async function extractMemories(manual){
       $("toast").classList.remove("hidden");
       setTimeout(function(){$("toast").textContent="Saved";$("toast").classList.add("hidden")},2000);
     }
-  }catch(e){}
+  }catch(e){
+    $("toast").textContent="\u26A0 Memory extraction failed";
+    $("toast").classList.remove("hidden");
+    setTimeout(function(){$("toast").textContent="Saved";$("toast").classList.add("hidden")},2500);
+  }
   if(btn)btn.classList.remove("working");
   memExtractCount=0;lr("gk_memCnt","0");
 }
@@ -988,7 +995,7 @@ async function send(){
     hideDots();addBub("assistant",assT,false,msgs.length-1,"");
     if(compressOn&&charCount(msgs)>15000)await compress();
     memExtractCount++;lr("gk_memCnt",""+memExtractCount);
-    if(memExtractCount>=20){extractMemories(false)}
+    if(memExtractCount>=10){extractMemories(false)}
   }catch(err){
     hideDots();var area=$("chatArea");var ed2=document.createElement("div");ed2.className="error-msg";ed2.textContent="\u26A0 "+err.message;area.appendChild(ed2);scrollB();
   }finally{loading=false;updSendBtn();inp.focus()}
