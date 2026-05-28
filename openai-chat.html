@@ -344,25 +344,25 @@ function getStoragePercent(){
   return Math.min(100,Math.round(used/max*100));
 }
 
-var apiKey=lr("ck_apiKey");
-var model=lr("ck_model")||DM;
+var apiKey=lr("gk_apiKey");
+var model=lr("gk_model")||DM;
 if(!MODELS.some(function(m){return m.id===model}))model=DM;
-var sysPrompt=lr("ck_sysPrompt");
-var memory=lr("ck_memory");
-var thinkOn=lr("ck_thinking")==="1";
-var compressOn=lr("ck_compress")!=="0";
+var sysPrompt=lr("gk_sysPrompt");
+var memory=lr("gk_memory");
+var thinkOn=lr("gk_thinking")==="1";
+var compressOn=lr("gk_compress")!=="0";
 var loading=false,editIdx=-1;
 var attachments=[]; // [{name,type,data,mediaType}]
-var usage=ls("ck_usage")||{input:0,output:0,cost:0};
-var autoMems=ls("ck_autoMems")||[];
-var memExtractCount=parseInt(lr("ck_memCnt"))||0;
+var usage=ls("gk_usage")||{input:0,output:0,cost:0};
+var autoMems=ls("gk_autoMems")||[];
+var memExtractCount=parseInt(lr("gk_memCnt"))||0;
 
-var convIdx=ls("ck_convIdx")||[];
-var curConv=lr("ck_curConv");
+var convIdx=ls("gk_convIdx")||[];
+var curConv=lr("gk_curConv");
 var msgs=[];
 
 function gid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
-function saveCIdx(){ls("ck_convIdx",convIdx)}
+function saveCIdx(){ls("gk_convIdx",convIdx)}
 function saveMsgs(id,m){
   // Strip base64 data from attachments before saving (huge space saver)
   var stripped=m.map(function(msg){
@@ -375,10 +375,10 @@ function saveMsgs(id,m){
     }
     return copy;
   });
-  ls("ck_m_"+id,stripped);
+  ls("gk_m_"+id,stripped);
 }
-function loadMsgs(id){return ls("ck_m_"+id)||[]}
-function delMsgs(id){try{localStorage.removeItem("ck_m_"+id);localStorage.removeItem("ck_s_"+id);localStorage.removeItem("ck_a_"+id)}catch(e){}}
+function loadMsgs(id){return ls("gk_m_"+id)||[]}
+function delMsgs(id){try{localStorage.removeItem("gk_m_"+id);localStorage.removeItem("gk_s_"+id);localStorage.removeItem("gk_a_"+id)}catch(e){}}
 
 var $=document.getElementById.bind(document);
 
@@ -386,14 +386,14 @@ function newConv(){
   if(curConv)saveMsgs(curConv,msgs);
   var id=gid();
   convIdx.unshift({id:id,title:"New chat",updatedAt:Date.now()});
-  saveCIdx();curConv=id;lr("ck_curConv",id);
+  saveCIdx();curConv=id;lr("gk_curConv",id);
   msgs=[];editIdx=-1;$("editBar").classList.add("hidden");
   renderConvs();renderMsgs();updateUI();closeSB();
 }
 function switchConv(id){
   if(id===curConv){closeSB();return}
   if(curConv)saveMsgs(curConv,msgs);
-  curConv=id;lr("ck_curConv",id);msgs=loadMsgs(id);
+  curConv=id;lr("gk_curConv",id);msgs=loadMsgs(id);
   editIdx=-1;$("editBar").classList.add("hidden");
   renderMsgs();updateUI();closeSB();
 }
@@ -436,13 +436,13 @@ function init(){
   $("memoryInput").value=memory;
   updToggles();renderModels();
   if(convIdx.length===0){
-    var old=ls("ck_messages");
+    var old=ls("gk_messages");
     var id=gid();var cv={id:id,title:"New chat",updatedAt:Date.now()};
     if(old&&old.length>0){cv.title=old[0].content.slice(0,30);saveMsgs(id,old)}
-    convIdx=[cv];saveCIdx();curConv=id;lr("ck_curConv",id);
-    try{localStorage.removeItem("ck_messages")}catch(e){}
+    convIdx=[cv];saveCIdx();curConv=id;lr("gk_curConv",id);
+    try{localStorage.removeItem("gk_messages")}catch(e){}
   }
-  if(!curConv||!convIdx.some(function(c){return c.id===curConv})){curConv=convIdx[0].id;lr("ck_curConv",curConv)}
+  if(!curConv||!convIdx.some(function(c){return c.id===curConv})){curConv=convIdx[0].id;lr("gk_curConv",curConv)}
   msgs=loadMsgs(curConv);
   renderConvs();renderMsgs();updateUI();
   if(!apiKey)toggleSettings();
@@ -514,8 +514,8 @@ function toggleSettings(){
 }
 function saveSets(){
   apiKey=$("apiKeyInput").value;sysPrompt=$("sysPromptInput").value;memory=$("memoryInput").value;
-  lr("ck_apiKey",apiKey);lr("ck_model",model);lr("ck_sysPrompt",sysPrompt);lr("ck_memory",memory);
-  lr("ck_thinking",thinkOn?"1":"0");lr("ck_compress",compressOn?"1":"0");
+  lr("gk_apiKey",apiKey);lr("gk_model",model);lr("gk_sysPrompt",sysPrompt);lr("gk_memory",memory);
+  lr("gk_thinking",thinkOn?"1":"0");lr("gk_compress",compressOn?"1":"0");
   toggleSettings();updateUI();
   $("toast").classList.remove("hidden");setTimeout(function(){$("toast").classList.add("hidden")},2000);
 }
@@ -524,7 +524,7 @@ function exportData(){
   var data={};
   for(var i=0;i<localStorage.length;i++){
     var k=localStorage.key(i);
-    if(k.startsWith("ck_"))data[k]=localStorage.getItem(k);
+    if(k.startsWith("gk_"))data[k]=localStorage.getItem(k);
   }
   var blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
   var a=document.createElement("a");
@@ -542,11 +542,11 @@ function importData(ev){
     try{
       var data=JSON.parse(e.target.result);
       var count=0;
-      for(var k in data){if(k.startsWith("ck_")){localStorage.setItem(k,data[k]);count++}}
+      for(var k in data){if(k.startsWith("gk_")){localStorage.setItem(k,data[k]);count++}}
       // Reload state from localStorage
-      apiKey=lr("ck_apiKey");model=lr("ck_model")||DM;sysPrompt=lr("ck_sysPrompt");memory=lr("ck_memory");
-      thinkOn=lr("ck_thinking")==="1";compressOn=lr("ck_compress")!=="0";
-      convIdx=ls("ck_convIdx")||[];curConv=lr("ck_curConv");
+      apiKey=lr("gk_apiKey");model=lr("gk_model")||DM;sysPrompt=lr("gk_sysPrompt");memory=lr("gk_memory");
+      thinkOn=lr("gk_thinking")==="1";compressOn=lr("gk_compress")!=="0";
+      convIdx=ls("gk_convIdx")||[];curConv=lr("gk_curConv");
       if(!curConv||!convIdx.some(function(c){return c.id===curConv})){if(convIdx.length>0)curConv=convIdx[0].id}
       msgs=loadMsgs(curConv);
       $("apiKeyInput").value=apiKey;$("sysPromptInput").value=sysPrompt;$("memoryInput").value=memory;
@@ -577,7 +577,7 @@ function toggleArchive(){
 
 function renderArchive(){
   var el=$("archiveContent");
-  var archive=ls("ck_a_"+curConv)||[];
+  var archive=ls("gk_a_"+curConv)||[];
   if(archive.length===0){el.innerHTML='<div class="archive-empty">No archived messages for this chat.<br>Messages are archived when Auto Compress runs.</div>';return}
   el.innerHTML="";
   archive.forEach(function(m){
@@ -655,7 +655,7 @@ function trackUsage(data){
   usage.input+=inp;
   usage.output+=out;
   usage.cost+=(inp*c.i+out*c.o)/1e6;
-  ls("ck_usage",usage);updUsage();
+  ls("gk_usage",usage);updUsage();
 }
 function updUsage(){
   var t=$("usageTokens"),c=$("usageCost"),st=$("usageStorage");
@@ -739,7 +739,7 @@ function buildApiMsgs(){
 }
 
 // --- Auto Memories ---
-function saveAutoMems(){ls("ck_autoMems",autoMems)}
+function saveAutoMems(){ls("gk_autoMems",autoMems)}
 function renderAutoMems(){
   var el=$("memList"),cnt=$("memCount");
   if(cnt)cnt.textContent="("+autoMems.length+")";
@@ -812,7 +812,7 @@ async function extractMemories(manual){
     }
   }catch(e){}
   if(btn)btn.classList.remove("working");
-  memExtractCount=0;lr("ck_memCnt","0");
+  memExtractCount=0;lr("gk_memCnt","0");
 }
 
 function scrollB(){var a=$("chatArea");requestAnimationFrame(function(){a.scrollTop=a.scrollHeight})}
@@ -910,8 +910,8 @@ function addBub(role,content,noA,idx,think){
 function showDots(){var em=$("emptyState");if(em)em.style.display="none";var area=$("chatArea");var r=document.createElement("div");r.className="msg-row assistant";r.id="typingRow";r.innerHTML='<div class="bubble assistant"><div class="typing-dots"><span></span><span></span><span></span></div></div>';area.appendChild(r);scrollB()}
 function hideDots(){var el=$("typingRow");if(el)el.remove()}
 
-function getSummary(){return lr("ck_s_"+curConv)}
-function setSummary(s){lr("ck_s_"+curConv,s)}
+function getSummary(){return lr("gk_s_"+curConv)}
+function setSummary(s){lr("gk_s_"+curConv,s)}
 
 function buildSys(){
   var p=[];
@@ -936,9 +936,9 @@ async function compress(){
   var keep=msgs.slice(msgs.length-KEEP);
 
   // Archive old messages before deleting them
-  var archive=ls("ck_a_"+curConv)||[];
+  var archive=ls("gk_a_"+curConv)||[];
   old.forEach(function(m){archive.push({role:m.role,content:m.content,time:Date.now()})});
-  ls("ck_a_"+curConv,archive);
+  ls("gk_a_"+curConv,archive);
 
   var existing=getSummary();
   var prompt="";
@@ -987,7 +987,7 @@ async function send(){
     saveMsgs(curConv,msgs);
     hideDots();addBub("assistant",assT,false,msgs.length-1,"");
     if(compressOn&&charCount(msgs)>15000)await compress();
-    memExtractCount++;lr("ck_memCnt",""+memExtractCount);
+    memExtractCount++;lr("gk_memCnt",""+memExtractCount);
     if(memExtractCount>=20){extractMemories(false)}
   }catch(err){
     hideDots();var area=$("chatArea");var ed2=document.createElement("div");ed2.className="error-msg";ed2.textContent="\u26A0 "+err.message;area.appendChild(ed2);scrollB();
