@@ -726,18 +726,16 @@ function buildApiMsgs(){
   var recent=msgs.slice(-8);
   recent.forEach(function(m){
     var c=m.content;
-    var prefix="";
-    if(m.ts){var d=new Date(m.ts);prefix="["+d.getFullYear()+"/"+(d.getMonth()+1)+"/"+d.getDate()+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")+"] "}
     if(Array.isArray(m.attachments)&&m.attachments.length>0&&m.attachments[0].data){
       var parts=[];
       m.attachments.forEach(function(a){
         if(!a.data)return;
         if(a.isImg)parts.push({type:"image_url",image_url:{url:"data:"+a.mediaType+";base64,"+a.data}});
       });
-      parts.push({type:"text",text:prefix+c});
+      parts.push({type:"text",text:c});
       apiMsgs.push({role:m.role,content:parts});
     }else{
-      apiMsgs.push({role:m.role,content:prefix+c});
+      apiMsgs.push({role:m.role,content:c});
     }
   });
   return apiMsgs;
@@ -969,6 +967,16 @@ function buildSys(){
   var days=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
   var timeStr=now.getFullYear()+"/"+(now.getMonth()+1)+"/"+now.getDate()+" "+days[now.getDay()]+" "+String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
   p.push("[Current time]\n"+timeStr);
+  var recent=msgs.slice(-8);
+  var timeline=[];
+  recent.forEach(function(m){
+    if(m.ts){
+      var d=new Date(m.ts);
+      var t=d.getFullYear()+"/"+(d.getMonth()+1)+"/"+d.getDate()+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+      timeline.push((m.role==="user"?"User":"You")+" messaged at "+t);
+    }
+  });
+  if(timeline.length>0)p.push("[Recent message times]\n"+timeline.join("\n"));
   return p.join("\n\n");
 }
 
