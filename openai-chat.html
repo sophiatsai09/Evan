@@ -63,6 +63,7 @@ html,body{height:100%;width:100%;overflow:hidden;background:#0f0f1a;color:#e8e6f
 .bubble.assistant .num-item{padding-left:20px;position:relative;margin:2px 0}
 .bubble.assistant .num-label{position:absolute;left:2px;font-weight:600}
 .msg-actions{display:flex;gap:6px;margin-top:3px}
+.msg-time{font-size:10px;opacity:.3;margin-top:2px}
 .action-btn{background:none;border:none;cursor:pointer;opacity:.35;color:inherit;padding:3px 6px;display:flex;align-items:center;gap:3px;font-size:11px;font-family:inherit;border-radius:6px}
 .action-btn:active{opacity:1;background:rgba(255,255,255,.08)}
 .typing-dots{display:flex;gap:5px;align-items:center;padding:14px 20px}
@@ -367,6 +368,7 @@ function saveMsgs(id,m){
   // Strip base64 data from attachments before saving (huge space saver)
   var stripped=m.map(function(msg){
     var copy={role:msg.role,content:msg.content};
+    if(msg.ts)copy.ts=msg.ts;
     if(msg.thinking)copy.thinking=msg.thinking;
     if(msg.attachments&&msg.attachments.length>0){
       copy.attachments=msg.attachments.map(function(a){
@@ -378,7 +380,7 @@ function saveMsgs(id,m){
   ls("gk_m_"+id,stripped);
 }
 function loadMsgs(id){return ls("gk_m_"+id)||[]}
-function delMsgs(id){try{localStorage.removeItem("gk_m_"+id);localStorage.removeItem("gk_s_"+id);localStorage.removeItem("gk_a_"+id)}catch(e){}}
+function delMsgs(id){try{localStorage.removeItem("gk_m_"+id);localStorage.removeItem("gk_a_"+id)}catch(e){}}
 
 var $=document.getElementById.bind(document);
 
@@ -720,19 +722,22 @@ function buildApiMsgs(){
   // System prompt goes in messages for OpenAI
   var sys=buildSys();
   if(sys)apiMsgs.push({role:"system",content:sys});
-  msgs.forEach(function(m){
+  // Only send the most recent 8 messages, summary handles older context
+  var recent=msgs.slice(-8);
+  recent.forEach(function(m){
     var c=m.content;
-    // Handle attachments with OpenAI image format
+    var prefix="";
+    if(m.ts){var d=new Date(m.ts);prefix="["+d.getFullYear()+"/"+(d.getMonth()+1)+"/"+d.getDate()+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")+"] "}
     if(Array.isArray(m.attachments)&&m.attachments.length>0&&m.attachments[0].data){
       var parts=[];
       m.attachments.forEach(function(a){
         if(!a.data)return;
         if(a.isImg)parts.push({type:"image_url",image_url:{url:"data:"+a.mediaType+";base64,"+a.data}});
       });
-      parts.push({type:"text",text:c});
+      parts.push({type:"text",text:prefix+c});
       apiMsgs.push({role:m.role,content:parts});
     }else{
-      apiMsgs.push({role:m.role,content:c});
+      apiMsgs.push({role:m.role,content:prefix+c});
     }
   });
   return apiMsgs;
@@ -923,6 +928,14 @@ function addBub(role,content,noA,idx,think){
   }
   row.appendChild(bub);
 
+  // Timestamp
+  var ts_msg=msgs[idx];
+  if(ts_msg&&ts_msg.ts){
+    var td=new Date(ts_msg.ts);
+    var ts=String(td.getHours()).padStart(2,"0")+":"+String(td.getMinutes()).padStart(2,"0");
+    var timeDiv=document.createElement("div");timeDiv.className="msg-time";timeDiv.textContent=ts;
+    row.appendChild(timeDiv);
+  }
   var acts=document.createElement("div");acts.className="msg-actions";
   if(role==="user"&&typeof idx==="number"){
     var eb=document.createElement("button");eb.className="action-btn";
@@ -942,8 +955,8 @@ function addBub(role,content,noA,idx,think){
 function showDots(){var em=$("emptyState");if(em)em.style.display="none";var area=$("chatArea");var r=document.createElement("div");r.className="msg-row assistant";r.id="typingRow";r.innerHTML='<div class="bubble assistant"><div class="typing-dots"><span></span><span></span><span></span></div></div>';area.appendChild(r);scrollB()}
 function hideDots(){var el=$("typingRow");if(el)el.remove()}
 
-function getSummary(){return lr("gk_s_"+curConv)}
-function setSummary(s){lr("gk_s_"+curConv,s)}
+function getSummary(){return lr("gk_summary")}
+function setSummary(s){lr("gk_summary",s)}
 
 function buildSys(){
   var p=[];
@@ -999,7 +1012,7 @@ async function send(){
   var inp=$("msgInput"),text=inp.value.trim();
   if((!text&&attachments.length===0)||loading||!apiKey.trim())return;
   if(editIdx>=0){msgs=msgs.slice(0,editIdx);editIdx=-1;$("editBar").classList.add("hidden")}
-  var msgObj={role:"user",content:text||"(image)"};
+  var msgObj={role:"user",content:text||"(image)",ts:Date.now()};
   if(attachments.length>0)msgObj.attachments=JSON.parse(JSON.stringify(attachments));
   msgs.push(msgObj);
   updTitle(curConv,msgs[0].content);
@@ -1015,10 +1028,9 @@ async function send(){
     trackUsage(data);
     var assT=(data.choices&&data.choices[0]&&data.choices[0].message)?data.choices[0].message.content:"";
     if(!assT)assT="(No response)";
-    msgs.push({role:"assistant",content:assT});
+    msgs.push({role:"assistant",content:assT,ts:Date.now()});
     saveMsgs(curConv,msgs);
     hideDots();addBub("assistant",assT,false,msgs.length-1,"");
-    if(compressOn&&charCount(msgs)>15000)await compress();
     memExtractCount++;lr("gk_memCnt",""+memExtractCount);
     if(memExtractCount>=10){extractMemories(false);updateRollingSummary()}
   }catch(err){
